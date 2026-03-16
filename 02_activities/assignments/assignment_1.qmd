@@ -21,90 +21,136 @@ Before fitting any models, it is essential to understand the data. Use R or bash
 
 ```         
 # Your answer here...
+4000
 ```
 
 (ii) What is the 'variable type' of the response variable (i.e.Continuous or binary)?
 
 ```         
 # Your answer here...
+Continuous
 ```
 
 (iii) Read the .bim file. How many SNPs does the dataset contain?
 
 ```         
 # Your answer here...
+101083
 ```
 
 #### Question 2: Allele Frequency Estimation
 
 (i) Load the genotype matrix for SNPs rs1861, rs3813199, rs3128342, and rs11804831 using additive coding. What are the allele frequencies (AFs) for these four SNPs?
 
-```         
+```{r}         
 # Your code here...
+setwd("/Users/zhilin/Desktop/Research/UofT DSI/gen_data/02_activities/data")
+system("plink --bfile gwa.qc.A1 --snps rs1861,rs3813199,rs3128342,rs11804831 --recodeA --out additive")
+raw <- read.table("additive.raw", header = TRUE)
+geno_matrix <- raw[, 7:ncol(raw)]
+af_A1 <- colMeans(geno_matrix, na.rm = TRUE) / 2
+af_A2 = 1 - af_A1
+data.frame(SNP = colnames(geno_matrix), AF_A1 = af_A1, AF_A2 = af_A2)
 ```
 
 (ii) What are the minor allele frequencies (MAFs) for these four SNPs?
 
-```         
+```{r}         
 # Your code here...
+maf <- pmin(af_A1, af_A2)
+maf
 ```
 
 #### Question 3: Hardy–Weinberg Equilibrium (HWE) Test
 
 (i) Conduct the Hardy–Weinberg Equilibrium (HWE) test for all SNPs in the .bim file. Then, load the file containing the HWE p-value results and display the first few rows of the resulting data frame.
 
-```         
+```{r}
 # Your code here...
+setwd("/Users/zhilin/Desktop/Research/UofT DSI/gen_data/02_activities/data")
+system("plink --bfile gwa.qc.A1 --hardy --out hwe_output")
+hwe_data <- read.table("hwe_output.hwe", header = TRUE)
+head(hwe_data)
 ```
 
 (ii) What are the HWE p-values for SNPs rs1861, rs3813199, rs3128342, and rs11804831?
 
-```         
+```{r}         
 # Your code here...
+target_snps <- c("rs1861", "rs3813199", "rs3128342", "rs11804831")
+hwe_pvalues <- hwe_data[hwe_data$SNP %in% target_snps, c("SNP", "P")]
+hwe_pvalues
 ```
 
 #### Question 4: Genetic Association Test
 
 (i) Conduct a linear regression to test the association between SNP rs1861 and the phenotype. What is the p-value?
 
-```         
+```{r}         
 # Your code here...
+geno_rs1861 <- geno_matrix[, grep("rs1861", colnames(geno_matrix))]
+pheno <- raw$PHENOTYPE
+fit_add <- lm(pheno ~ geno_rs1861)
+summary(fit_add)
+summary(fit_add)$coefficients["geno_rs1861", "Pr(>|t|)"]
 ```
 
 (ii) How would you interpret the beta coefficient from this regression?
 
 ```         
 # Your answer here...
+The beta represents the average change in phenotype for each additional copy of the A1 (minor) allele, under an additive mode.
 ```
 
 (iii) Plot the scatterplot of phenotype versus the genotype of SNP rs1861. Add the regression line to the plot.
 
-```         
+```{r}
 # Your code here...
+plot(geno_rs1861, pheno,
+     xlab = "rs1861 Genotype",
+     ylab = "Phenotype",
+     main = "Phenotype vs rs1861 (Additive)",
+     pch = 16, col = rgb(0, 0, 1, 0.3))
+abline(fit_add, col = "red", lwd = 2)
 ```
 
 (iv) Convert the genotype coding for rs1861 to recessive coding.
 
-```         
+```{r}         
 # Your code here...
+geno_rs1861_rec <- ifelse(geno_rs1861 == 2, 1, 0)
 ```
 
 (v) Conduct a linear regression to test the association between the recessive-coded rs1861 and the phenotype. What is the p-value?
 
-```         
+```{r}         
 # Your code here...
+fit_rec <- lm(pheno ~ geno_rs1861_rec)
+summary(fit_rec)
+summary(fit_rec)$coefficients["geno_rs1861_rec", "Pr(>|t|)"]
 ```
 
 (vi) Plot the scatterplot of phenotype versus the recessive-coded genotype of rs1861. Add the regression line to the plot.
 
-```         
+```{r}
 # Your code here...
+plot(geno_rs1861_rec, pheno,
+     xlab = "rs1861 Genotype",
+     ylab = "Phenotype",
+     main = "Phenotype vs rs1861 (Recessive)",
+     pch = 16, col = rgb(0, 0.6, 0, 0.3))
+abline(fit_rec, col = "red", lwd = 2)
+
+summary(fit_add)$adj.r.squared
+summary(fit_rec)$adj.r.squared
+AIC(fit_add, fit_rec)
 ```
 
 (vii) Which model fits better? Justify your answer.
 
 ```         
 # Your answer here...
+The additive model fits better than the recessive model. By observing the plots, the recessive plot has nearly all observations fall at genotype = 0, with very few homozygous minor allele carriers (genotype = 1). This means the recessive model has very little information to estimate an effect. However, the additive model uses the full 0/1/2 dosage and can capture a trend across all three genotype groups.
 ```
 
 ### Criteria
