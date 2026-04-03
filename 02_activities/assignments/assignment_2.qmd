@@ -13,18 +13,27 @@ Before you run any models, first get familiar with the dataset. You may find `da
 
 ```{r}
 # Your code here...
+fam <- data.table::fread("../data/gwa.A2.fam", header = FALSE)
+n_samples <- nrow(fam)
+n_samples
 ```
 
 (ii) Read the `.bim` file. How many SNPs does the dataset contain?
 
 ```{r}
 # Your code here...
+bim <- data.table::fread("../data/gwa.A2.bim", header = FALSE)
+n_snps <- nrow(bim)
+n_snps
 ```
 
 (iii) Make a histogram (or density plot) of the phenotype. Does it look roughly Gaussian?
 
 ```{r}
 # Your code here...
+phenotype <- fam$V6
+hist(phenotype, breaks = 30, main = "Phenotype Distribution", xlab = "Phenotype Value", ylab = "Frequency") 
+# It looks relatively Gaussian, with a bell-shaped curve and no outliers.
 ```
 
 #### Question 2: Quality control (QC)
@@ -35,28 +44,34 @@ Now we will perform QC using PLINK2 for the genotype files in `gwa.A2`.
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.A2 --maf 0.05 --geno 0.01 --mind 0.10 --hwe 0.00005 --make-bed --out ../data/gwa.qc.A2
 ```
 
 #### Question 3: Relatedness
 
 In this question, you will use **PLINK2’s built-in KING-robust kinship** (`--king-cutoff`) detect and remove related individuals.
 
-i)  Perform LD pruning on `gwa.qc.A2` using PLINK2 with the following parameters: `--indep-pairwise 500 50 0.05`, and then generate a new dataset containing only the pruned SNPs.
+(i)  Perform LD pruning on `gwa.qc.A2` using PLINK2 with the following parameters: `--indep-pairwise 500 50 0.05`, and then generate a new dataset containing only the pruned SNPs.
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.qc.A2 --indep-pairwise 500 50 0.05 --out ../data/gwa.qc.A2.prune
+
+plink2 --bfile ../data/gwa.qc.A2 --extract ../data/gwa.qc.A2.prune.prune.in --make-bed --out ../data/gwa.qc.A2.pruned
 ```
 
 (ii) Use PLINK2 on the LD-pruned dataset to identify a set of unrelated individuals up to (approximately) 2nd-degree relatives (use a kinship cutoff of 0.0884).
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.qc.A2.pruned --king-cutoff 0.0884 --out ../data/gwa.qc.A2.unrelated
 ```
 
 (iii) Using the unrelated individual list from part (ii), create a dataset containing only unrelated individuals and name it `gwa.qc_unrelated.A2`.
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.qc.A2 --keep ../data/gwa.qc.A2.unrelated.king.cutoff.in.id --make-bed --out ../data/gwa.qc_unrelated.A2
 ```
 
 #### Question 4: principal component analysis (PCA)
@@ -67,6 +82,7 @@ i)  Perform LD pruning on `gwa.qc.A2` using PLINK2 with the following parameters
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.qc_unrelated.A2 --extract ../data/gwa.qc.A2.prune.prune.in --pca 10 --out ../data/gwa.qc_unrelated.A2.pca
 ```
 
 #### Question 5: GWAS analyses
@@ -83,18 +99,26 @@ Assume that:
 
 ```{bash}
 # Your code here...
+plink2 --bfile ../data/gwa.qc_unrelated.A2 --covar ../data/gwa.qc_unrelated.A2.pca.eigenvec --covar-name PC1,PC2,PC3 --linear hide-covar --out ../data/gwa.qc_unrelated.A2.gwas
 ```
 
 (ii) Create a Manhattan plot of the GWAS results.
 
 ```{r}
 # Your code here...
+library(qqman)
+gwas_results <- data.table::fread("../data/gwa.qc_unrelated.A2.gwas.PHENO1.glm.linear")
+gwas_results <- as.data.frame(gwas_results)
+gwas_results <- gwas_results[!is.na(gwas_results$P), ]
+
+manhattan(gwas_results, chr = "#CHROM", bp = "POS", snp = "ID", p = "P", main = "GWAS Manhattan Plot")
 ```
 
 (iii) Create a QQ plot of the GWAS p-values.
 
 ```{r}
 # Your code here...
+qq(gwas_results$P, main = "GWAS QQ Plot")
 ```
 
 ### Criteria
